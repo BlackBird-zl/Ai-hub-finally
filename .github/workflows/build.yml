@@ -22,11 +22,16 @@ jobs:
       - name: Configura Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Instala Gradle 8.2
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.2'
+
       - name: Permissão para o Gradle
         run: chmod +x gradlew
 
       - name: Build APK (Release)
-        run: ./gradlew assembleRelease
+        run: gradle assembleRelease
 
       - name: Salva APK para download
         uses: actions/upload-artifact@v4
