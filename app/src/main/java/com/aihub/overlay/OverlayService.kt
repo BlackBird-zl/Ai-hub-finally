@@ -17,6 +17,7 @@ class OverlayService : Service() {
     private lateinit var menuView: View
     private var menuVisible = false
 
+    // Posição do FAB
     private var fabX = 0
     private var fabY = 300
     private var initialTouchX = 0f
@@ -25,6 +26,7 @@ class OverlayService : Service() {
     private var initialY = 0
     private var isDragging = false
 
+    // Apps de IA configurados
     data class AIApp(
         val name: String,
         val emoji: String,
@@ -51,16 +53,26 @@ class OverlayService : Service() {
         createFab()
     }
 
+    // ===== FAB (Robozinho flutuante) =====
     private fun createFab() {
         fabView = FrameLayout(this).apply {
             val size = dpToPx(60)
+
+            // Fundo do botão
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = dpToPx(16).toFloat()
-                colors = intArrayOf(Color.parseColor("#2a1f16"), Color.parseColor("#1a1410"))
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    colors = intArrayOf(Color.parseColor("#2a1f16"), Color.parseColor("#1a1410"))
+                } else {
+                    setColor(Color.parseColor("#2a1f16"))
+                }
                 setStroke(dpToPx(1), Color.parseColor("#D97757"))
             }
+
             elevation = dpToPx(8).toFloat()
+
+            // Robozinho desenhado em canvas
             val robotView = object : View(context) {
                 override fun onDraw(canvas: Canvas) {
                     drawRobot(canvas, width.toFloat(), height.toFloat())
@@ -73,8 +85,10 @@ class OverlayService : Service() {
             x = fabX
             y = fabY
         }
+
         windowManager.addView(fabView, params)
 
+        // Touch: arrastar ou clicar
         var downTime = 0L
         fabView.setOnTouchListener { v, event ->
             when (event.action) {
@@ -100,7 +114,9 @@ class OverlayService : Service() {
                 }
                 MotionEvent.ACTION_UP -> {
                     val elapsed = System.currentTimeMillis() - downTime
-                    if (!isDragging && elapsed < 400) toggleMenu()
+                    if (!isDragging && elapsed < 400) {
+                        toggleMenu()
+                    }
                     true
                 }
                 else -> false
@@ -108,6 +124,7 @@ class OverlayService : Service() {
         }
     }
 
+    // ===== MENU =====
     private fun createMenu() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -115,12 +132,17 @@ class OverlayService : Service() {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = dpToPx(20).toFloat()
-                colors = intArrayOf(Color.parseColor("#241a12"), Color.parseColor("#1a1410"))
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    colors = intArrayOf(Color.parseColor("#241a12"), Color.parseColor("#1a1410"))
+                } else {
+                    setColor(Color.parseColor("#241a12"))
+                }
                 setStroke(dpToPx(1), Color.parseColor("#3d2b1a"))
             }
             elevation = dpToPx(12).toFloat()
         }
 
+        // Título
         val title = TextView(this).apply {
             text = "⚡ O que fazer?"
             setTextColor(Color.parseColor("#D97757"))
@@ -130,16 +152,21 @@ class OverlayService : Service() {
         }
         layout.addView(title)
 
+        // Botão: Abrir IA diretamente
         layout.addView(menuButton("🚀  Abrir uma IA", Color.parseColor("#2a1f16")) {
             hideMenu()
             showAiPicker(mode = "open")
         })
 
-        val sep = View(this).apply { setBackgroundColor(Color.parseColor("#2d2218")) }
+        // Separador
+        val sep = View(this).apply {
+            setBackgroundColor(Color.parseColor("#2d2218"))
+        }
         layout.addView(sep, LinearLayout.LayoutParams(MATCH_PARENT, dpToPx(1)).apply {
             setMargins(0, dpToPx(6), 0, dpToPx(6))
         })
 
+        // Botão: Tirar print
         layout.addView(menuButton("📸  Tirar print e enviar", Color.parseColor("#1e2a1e")) {
             hideMenu()
             takeScreenshot()
@@ -149,6 +176,7 @@ class OverlayService : Service() {
             x = fabX - dpToPx(170)
             y = fabY - dpToPx(160)
         }
+
         menuView = layout
         windowManager.addView(menuView, menuParams)
     }
@@ -171,6 +199,7 @@ class OverlayService : Service() {
         }
     }
 
+    // ===== AI PICKER =====
     private fun showAiPicker(mode: String, screenshotUri: android.net.Uri? = null) {
         val pickerLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -178,7 +207,11 @@ class OverlayService : Service() {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = dpToPx(20).toFloat()
-                colors = intArrayOf(Color.parseColor("#241a12"), Color.parseColor("#1a1410"))
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    colors = intArrayOf(Color.parseColor("#241a12"), Color.parseColor("#1a1410"))
+                } else {
+                    setColor(Color.parseColor("#241a12"))
+                }
                 setStroke(dpToPx(1), Color.parseColor("#3d2b1a"))
             }
             elevation = dpToPx(12).toFloat()
@@ -206,12 +239,14 @@ class OverlayService : Service() {
                 lp.bottomMargin = dpToPx(4)
                 layoutParams = lp
 
+                // Emoji
                 addView(TextView(context).apply {
                     text = app.emoji
                     textSize = 20f
                     setPadding(0, 0, dpToPx(10), 0)
                 })
 
+                // Nome
                 addView(TextView(context).apply {
                     text = app.name
                     setTextColor(Color.parseColor("#f0ebe4"))
@@ -221,20 +256,24 @@ class OverlayService : Service() {
                 })
 
                 setOnClickListener {
-                    windowManager.removeView(pickerLayout)
-                    if (mode == "open") openApp(app)
-                    else if (screenshotUri != null) sendImageToApp(app, screenshotUri)
+                    try { windowManager.removeView(pickerLayout) } catch (_: Exception) {}
+                    if (mode == "open") {
+                        openApp(app)
+                    } else {
+                        if (screenshotUri != null) sendImageToApp(app, screenshotUri)
+                    }
                 }
             }
             pickerLayout.addView(row)
         }
 
+        // Botão cancelar
         pickerLayout.addView(TextView(this).apply {
             text = "✕  Cancelar"
             setTextColor(Color.parseColor("#7c6a5a"))
             textSize = 12f
             setPadding(dpToPx(14), dpToPx(10), dpToPx(14), dpToPx(4))
-            setOnClickListener { windowManager.removeView(pickerLayout) }
+            setOnClickListener { try { windowManager.removeView(pickerLayout) } catch (_: Exception) {} }
         })
 
         val pickerParams = layoutParams(dpToPx(230), WRAP_CONTENT).apply {
@@ -244,6 +283,7 @@ class OverlayService : Service() {
         windowManager.addView(pickerLayout, pickerParams)
     }
 
+    // ===== ABRIR APP =====
     private fun openApp(app: AIApp) {
         val intent = packageManager.getLaunchIntentForPackage(app.packageName)
         if (intent != null) {
@@ -254,16 +294,23 @@ class OverlayService : Service() {
         }
     }
 
+    // ===== ENVIAR IMAGEM =====
     private fun sendImageToApp(app: AIApp, uri: android.net.Uri) {
         if (!app.supportsImage) {
-            Toast.makeText(this, "⚠️ ${app.name} não suporta receber imagens diretamente.", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                this,
+                "⚠️ ${app.name} não suporta receber imagens diretamente.",
+                Toast.LENGTH_LONG
+            ).show()
             return
         }
+
         val intent = packageManager.getLaunchIntentForPackage(app.packageName)
         if (intent == null) {
             Toast.makeText(this, "${app.name} não está instalado.", Toast.LENGTH_SHORT).show()
             return
         }
+
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "image/png"
             putExtra(Intent.EXTRA_STREAM, uri)
@@ -274,6 +321,7 @@ class OverlayService : Service() {
         startActivity(shareIntent)
     }
 
+    // ===== SCREENSHOT =====
     private fun takeScreenshot() {
         val intent = Intent(this, ScreenshotActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -281,12 +329,20 @@ class OverlayService : Service() {
         startActivity(intent)
     }
 
+    // Chamado por ScreenshotActivity após captura
     fun onScreenshotReady(uri: android.net.Uri) {
         showAiPicker(mode = "screenshot", screenshotUri = uri)
     }
 
-    private fun toggleMenu() { if (menuVisible) hideMenu() else showMenu() }
-    private fun showMenu() { menuVisible = true; createMenu() }
+    // ===== TOGGLE MENU =====
+    private fun toggleMenu() {
+        if (menuVisible) hideMenu() else showMenu()
+    }
+
+    private fun showMenu() {
+        menuVisible = true
+        createMenu()
+    }
 
     private fun hideMenu() {
         if (menuVisible && ::menuView.isInitialized) {
@@ -295,37 +351,63 @@ class OverlayService : Service() {
         menuVisible = false
     }
 
+    // ===== DESENHO DO ROBOZINHO =====
     private fun drawRobot(canvas: Canvas, w: Float, h: Float) {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+        // Corpo/cabeça
         paint.color = Color.parseColor("#D97757")
-        canvas.drawRoundRect(RectF(w*0.18f, h*0.25f, w*0.82f, h*0.78f), 14f, 14f, paint)
+        val headRect = RectF(w * 0.18f, h * 0.25f, w * 0.82f, h * 0.78f)
+        canvas.drawRoundRect(headRect, 14f, 14f, paint)
+
+        // Olhos
         paint.color = Color.parseColor("#1a1410")
-        canvas.drawCircle(w*0.36f, h*0.50f, w*0.09f, paint)
-        canvas.drawCircle(w*0.64f, h*0.50f, w*0.09f, paint)
-        paint.color = Color.parseColor("#ffffff"); paint.alpha = 180
-        canvas.drawCircle(w*0.39f, h*0.47f, w*0.04f, paint)
-        canvas.drawCircle(w*0.67f, h*0.47f, w*0.04f, paint)
+        canvas.drawCircle(w * 0.36f, h * 0.50f, w * 0.09f, paint)
+        canvas.drawCircle(w * 0.64f, h * 0.50f, w * 0.09f, paint)
+
+        // Brilho nos olhos
+        paint.color = Color.parseColor("#ffffff")
+        paint.alpha = 180
+        canvas.drawCircle(w * 0.39f, h * 0.47f, w * 0.04f, paint)
+        canvas.drawCircle(w * 0.67f, h * 0.47f, w * 0.04f, paint)
         paint.alpha = 255
-        paint.color = Color.parseColor("#1a1410"); paint.alpha = 150
-        canvas.drawRoundRect(RectF(w*0.34f, h*0.64f, w*0.66f, h*0.71f), 4f, 4f, paint)
+
+        // Boca
+        paint.color = Color.parseColor("#1a1410")
+        paint.alpha = 150
+        val mouthRect = RectF(w * 0.34f, h * 0.64f, w * 0.66f, h * 0.71f)
+        canvas.drawRoundRect(mouthRect, 4f, 4f, paint)
         paint.alpha = 255
-        paint.color = Color.parseColor("#D97757"); paint.strokeWidth = 4f; paint.style = Paint.Style.STROKE
-        canvas.drawLine(w*0.5f, h*0.25f, w*0.5f, h*0.12f, paint)
-        paint.style = Paint.Style.FILL; paint.color = Color.parseColor("#E8A87C")
-        canvas.drawCircle(w*0.5f, h*0.10f, w*0.08f, paint)
+
+        // Antena
+        paint.color = Color.parseColor("#D97757")
+        paint.strokeWidth = 4f
+        paint.style = Paint.Style.STROKE
+        canvas.drawLine(w * 0.5f, h * 0.25f, w * 0.5f, h * 0.12f, paint)
+        paint.style = Paint.Style.FILL
+        paint.color = Color.parseColor("#E8A87C")
+        canvas.drawCircle(w * 0.5f, h * 0.10f, w * 0.08f, paint)
+
+        // Orelhas
         paint.color = Color.parseColor("#b85e3a")
         canvas.drawRoundRect(RectF(w*0.08f, h*0.38f, w*0.18f, h*0.58f), 6f, 6f, paint)
         canvas.drawRoundRect(RectF(w*0.82f, h*0.38f, w*0.92f, h*0.58f), 6f, 6f, paint)
+
+        // Pescoço/base
         paint.alpha = 150
         canvas.drawRoundRect(RectF(w*0.32f, h*0.78f, w*0.68f, h*0.90f), 6f, 6f, paint)
+        paint.alpha = 255
     }
 
+    // ===== HELPERS =====
     private fun layoutParams(w: Int, h: Int) = WindowManager.LayoutParams(
         w, h,
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) TYPE_APPLICATION_OVERLAY else TYPE_PHONE,
         FLAG_NOT_FOCUSABLE,
         PixelFormat.TRANSLUCENT
-    ).apply { gravity = Gravity.TOP or Gravity.START }
+    ).apply {
+        gravity = Gravity.TOP or Gravity.START
+    }
 
     private fun dpToPx(dp: Int) = (dp * resources.displayMetrics.density).toInt()
 
@@ -351,14 +433,14 @@ class OverlayService : Service() {
         hideMenu()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        instance = this
-        return START_STICKY
-    }
-
     companion object {
         const val CHANNEL_ID = "ai_hub_channel"
         const val NOTIF_ID = 1
-        var instance: OverlayService? = null
+        @Volatile var instance: OverlayService? = null
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        instance = this
+        return START_STICKY // reinicia automaticamente se o sistema matar o serviço
     }
 }
