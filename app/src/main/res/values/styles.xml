@@ -5,4 +5,9 @@
         <item name="android:colorBackgroundCacheHint">@null</item>
         <item name="android:windowIsTranslucent">true</item>
     </style>
+
+    <style name="Theme.AIHub.Launcher" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowIsTranslucent">false</item>
+    </style>
 </resources>
