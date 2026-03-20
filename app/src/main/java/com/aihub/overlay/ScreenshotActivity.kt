@@ -35,6 +35,8 @@ class ScreenshotActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == REQ_CAPTURE && resultCode == RESULT_OK && data != null) {
             val projManager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+
+            // Android 14+ (API 34) exige callback registado antes de usar getMediaProjection
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 val projection = projManager.getMediaProjection(resultCode, data)
                 projection.registerCallback(object : MediaProjection.Callback() {
@@ -44,6 +46,7 @@ class ScreenshotActivity : Activity() {
             } else {
                 mediaProjection = projManager.getMediaProjection(resultCode, data)
             }
+
             captureScreen()
         } else {
             Toast.makeText(this, "Captura cancelada.", Toast.LENGTH_SHORT).show()
@@ -79,3 +82,37 @@ class ScreenshotActivity : Activity() {
                     bitmap.copyPixelsFromBuffer(buffer)
                     image.close()
                     val uri = saveBitmap(bitmap)
+                    cleanup()
+                    if (uri != null) {
+                        OverlayService.instance?.onScreenshotReady(uri)
+                    } else {
+                        Toast.makeText(this, "Erro ao salvar print.", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(this, "Nao foi possivel capturar a tela.", Toast.LENGTH_SHORT).show()
+                    cleanup()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this, "Erro na captura.", Toast.LENGTH_SHORT).show()
+                cleanup()
+            }
+            finish()
+        }, 1000)
+    }
+
+    private fun saveBitmap(bitmap: Bitmap): Uri? {
+        return try {
+            val file = File(cacheDir, "screenshot_${System.currentTimeMillis()}.png")
+            FileOutputStream(file).use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
+            FileProvider.getUriForFile(this, "$packageName.provider", file)
+        } catch (e: Exception) { null }
+    }
+
+    private fun cleanup() {
+        try { virtualDisplay?.release() } catch (_: Exception) {}
+        try { imageReader?.close() } catch (_: Exception) {}
+        try { mediaProjection?.stop() } catch (_: Exception) {}
+    }
+
+    companion object { const val REQ_CAPTURE = 2001 }
+}
